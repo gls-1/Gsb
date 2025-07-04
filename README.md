@@ -1,11 +1,8 @@
-# Gsb
-Readme 
-
-Gsb is garretts search bar, a wizardly search engine and bootable os for retardation and government commanding. 
+# readme
 
 
-
-Gsb is a minimalist, bootable OS that launches apps right in containers of any system for which you have an .iso. Feel free to throw any file in /gsb, the dump, it will auto generate tags in an index to keep track of everything, which is just a search away. 
+gsb 
+is a minimalist, bootable OS that launches apps right in containers of any system for which you have an .iso. Feel free to throw any file in /gsb, the dump, it will auto generate tags in an index to keep track of everything, which is just a search away. 
 
 Try typing "star wars", when you have all those legally downloaded! 
 
