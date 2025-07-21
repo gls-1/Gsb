@@ -1,0 +1,124 @@
+import curses
+import os
+import platform
+import subprocess
+import webbrowser
+
+def get_all_drives():
+    if os.name == 'nt':
+        from ctypes import windll
+        drives = []
+        bitmask = windll.kernel32.GetLogicalDrives()
+        for i in range(26):
+            if bitmask & (1 << i):
+                drives.append(f"{chr(65 + i)}:/")
+        return drives
+    else:
+        return ['/']
+
+def get_dir_contents(path):
+    if path == "DRIVES":
+        return get_all_drives()
+    try:
+        return sorted(os.listdir(path))
+    except Exception:
+        return []
+
+def open_file(path):
+    try:
+        if os.name == 'nt':
+            os.startfile(path)
+        elif platform.system() == 'Darwin':
+            subprocess.Popen(['open', path])
+        else:
+            subprocess.Popen(['xdg-open', path])
+    except Exception as e:
+        print("Could not open:", e)
+
+def draw_ui(stdscr, path, contents, search_query, selected):
+    stdscr.clear()
+    h, w = stdscr.getmaxyx()
+
+    # Top: current path
+    stdscr.addstr(0, 0, f"{path}")
+
+    # Contents
+    for i, entry in enumerate(contents[:h - 4]):
+        prefix = "> " if i == selected else "  "
+        stdscr.addstr(2 + i, 0, f"{prefix}{entry}")
+
+    # Bottom: search bar
+    stdscr.addstr(h - 1, 0, f"| {search_query}")
+
+    stdscr.refresh()
+
+def search_bar(stdscr):
+    curses.curs_set(0)
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+
+    path = script_dir
+    search_query = ""
+    selected = 0
+    contents = get_dir_contents(path)
+
+    while True:
+        draw_ui(stdscr, path, contents, search_query, selected)
+        key = stdscr.getch()
+
+        if key in (curses.KEY_UP, ord('k')):
+            selected = (selected - 1) % len(contents) if contents else 0
+
+        elif key in (curses.KEY_DOWN, ord('j')):
+            selected = (selected + 1) % len(contents) if contents else 0
+
+        elif key in (curses.KEY_LEFT, 27):  # Esc or Left
+            if os.name == 'nt' and len(path) <= 3:
+                path = "DRIVES"
+            else:
+                path = os.path.dirname(path)
+            contents = get_dir_contents(path)
+            search_query = ""
+            selected = 0
+
+        elif key in (curses.KEY_RIGHT, 10):  # Enter or Right
+            did_open = False
+            if contents:
+                selected_item = contents[selected]
+                selected_path = os.path.join(path, selected_item) if path != "DRIVES" else selected_item
+
+                if os.path.isdir(selected_path):
+                    path = selected_path
+                    contents = get_dir_contents(path)
+                    search_query = ""
+                    selected = 0
+                    did_open = True
+                elif os.path.isfile(selected_path):
+                    open_file(selected_path)
+                    did_open = True
+
+            if not did_open and search_query.strip():
+                webbrowser.open(f"https://www.google.com/search?q={search_query.strip()}")
+                search_query = ""
+                contents = get_dir_contents(path)
+                selected = 0
+
+        elif key in (curses.KEY_BACKSPACE, 127, 8, 263):
+            search_query = search_query[:-1]
+            if path == "DRIVES":
+                contents = [d for d in get_all_drives() if search_query.lower() in d.lower()]
+            else:
+                contents = [c for c in get_dir_contents(path) if search_query.lower() in c.lower()]
+            selected = 0
+
+        elif 32 <= key <= 126:
+            search_query += chr(key)
+            if path == "DRIVES":
+                contents = [d for d in get_all_drives() if search_query.lower() in d.lower()]
+            else:
+                contents = [c for c in get_dir_contents(path) if search_query.lower() in c.lower()]
+            selected = 0
+
+        elif key == 9:  # Tab
+            selected = (selected + 1) % len(contents) if contents else 0
+
+curses.wrapper(search_bar)
